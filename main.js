@@ -1,6 +1,7 @@
 const { program } = require('commander');
 const http = require("http");
 const fs = require('fs').promises;
+const superagent = require('superagent');
 
 program 
   .requiredOption('-h, --host <host>', 'servers address')
@@ -13,7 +14,7 @@ const o = program.opts();
 
 const requestListener = async function (req, res) {
     const code = req.url.slice(1);
-    const filePath = `${__dirname}/${code}.jpg`;
+    const filePath = o.cache + "/" + code + ".jpg";
 
     try {
         switch (req.method) {
@@ -23,11 +24,19 @@ const requestListener = async function (req, res) {
                     res.setHeader("Content-Type", "image/jpeg");
                     res.writeHead(200);
                     res.end(image);
-                } catch (err) {
-                    const error404 = await fs.readFile(__dirname + "/404.jpg");
-                    res.setHeader("Content-Type", "image/jpeg");
-                    res.writeHead(404);
-                    res.end(error404);
+                } catch {
+                    try {
+                        const response = await superagent.get("https://http.cat/" + code);
+                        await fs.writeFile(filePath, response.body); 
+                        res.setHeader("Content-Type", "image/jpeg");
+                        res.writeHead(200);
+                        res.end(response.body);
+                    } catch (err) {
+                        const error404 = await fs.readFile(__dirname + "/404.jpg");
+                        res.setHeader("Content-Type", "image/jpeg");
+                        res.writeHead(404);
+                        res.end(error404);
+                    }
                 }
                 break;
             }
